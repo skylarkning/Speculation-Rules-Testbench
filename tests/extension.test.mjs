@@ -218,9 +218,12 @@ test("attributes a tabless speculative request to one exact active target", asyn
   const event = { addListener() {} };
   let cacheClears = 0;
   let reloads = 0;
+  let feedbackUrl = "";
+  let snapshotAttempts = 0;
   const context = {
     URL,
     crypto,
+    setTimeout,
     browser: {
       browsingData: {
         async removeCache() {
@@ -228,8 +231,17 @@ test("attributes a tabless speculative request to one exact active target", asyn
         },
       },
       runtime: { onConnect: event },
+      scripting: {
+        async executeScript() {
+          snapshotAttempts += 1;
+          return [{ result: { pageUrl: "https://symfony.com/", scripts: [] } }];
+        },
+      },
       tabs: {
         onRemoved: event,
+        async create({ url }) {
+          feedbackUrl = url;
+        },
         async get() {
           return { url: "https://symfony.com/" };
         },
@@ -248,7 +260,7 @@ test("attributes a tabless speculative request to one exact active target", asyn
     },
   };
   vm.runInNewContext(
-    `${background}\nglobalThis.__testbench = { sessions, activeContext, clearHttpCache, startRun };`,
+    `${background}\nglobalThis.__testbench = { sessions, activeContext, capturePageSnapshot, clearHttpCache, openFeedback, startRun };`,
     context,
   );
   context.__testbench.sessions.set(17, {
@@ -281,6 +293,16 @@ test("attributes a tabless speculative request to one exact active target", asyn
   assert.equal(reloads, 1);
   assert.equal(cacheSession.active.status, "recording");
   assert.equal(cacheSession.active.cachePrepared, true);
+
+  const snapshot = await context.__testbench.capturePageSnapshot(18);
+  assert.equal(snapshot.pageUrl, "https://symfony.com/");
+  assert.equal(snapshotAttempts, 1);
+
+  await context.__testbench.openFeedback();
+  assert.equal(
+    feedbackUrl,
+    "https://github.com/skylarkning/Speculation-Rules-Testbench/issues",
+  );
 });
 
 test("extension manifest and panel declare the required Firefox surfaces", async () => {
@@ -305,14 +327,24 @@ test("extension manifest and panel declare the required Firefox surfaces", async
   assert.ok(manifest.permissions.includes("webRequest"));
   assert.ok(manifest.permissions.includes("webRequestBlocking"));
   assert.ok(manifest.permissions.includes("browsingData"));
+  assert.ok(manifest.permissions.includes("scripting"));
   assert.ok(manifest.host_permissions.includes("<all_urls>"));
   assert.match(panel, /Start enabled capture/);
   assert.match(panel, /Start blocked-prefetch control/);
   assert.match(panel, /Finish and save measurement/);
   assert.match(panel, /Cancel without measurement/);
   assert.match(panel, /Scan and lock pair/);
+  assert.match(panel, /Submit feedback/);
   assert.match(background, /return \{ cancel: true \}/);
+  assert.match(
+    background,
+    /github\.com\/skylarkning\/Speculation-Rules-Testbench\/issues/,
+  );
+  assert.match(background, /browser\.scripting\.executeScript/);
+  assert.match(background, /OPEN_FEEDBACK/);
   assert.match(panelScript, /Confirm: clear entire HTTP cache/);
   assert.match(panelScript, /lockedPair: \{ sourceUrl, targetUrl \}/);
+  assert.doesNotMatch(panelScript, /browser\.tabs\.create/);
+  assert.doesNotMatch(panelScript, /inspectedWindow\.eval/);
   assert.doesNotMatch(panelScript, /window\.confirm/);
 });

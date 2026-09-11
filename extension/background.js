@@ -20,6 +20,80 @@ const RESPONSE_HEADER_ALLOWLIST = new Set([
   "expires",
   "vary",
 ]);
+const FEEDBACK_URL =
+  "https://github.com/skylarkning/Speculation-Rules-Testbench/issues";
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function readableError(error, fallback) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (!message || /unexpected error occurred/i.test(message)) return fallback;
+  return message.replace(/^Error:\s*/, "");
+}
+
+async function capturePageSnapshot(tabId) {
+  let lastError;
+  for (const wait of [0, 250, 750]) {
+    if (wait) await delay(wait);
+    try {
+      const results = await browser.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          const navigation = performance.getEntriesByType("navigation")[0];
+          return {
+            pageUrl: location.href,
+            title: document.title,
+            apiSupported:
+              typeof HTMLScriptElement.supports === "function" &&
+              HTMLScriptElement.supports("speculationrules"),
+            deliveryTypeSupported:
+              "PerformanceNavigationTiming" in window &&
+              "deliveryType" in PerformanceNavigationTiming.prototype,
+            scripts: Array.from(
+              document.querySelectorAll('script[type="speculationrules"]'),
+            ).map((script, index) => ({
+              index,
+              text: script.textContent || "",
+              src: script.src || "",
+            })),
+            navigation: navigation
+              ? {
+                  name: navigation.name,
+                  deliveryType:
+                    "deliveryType" in navigation ? navigation.deliveryType : "",
+                  transferSize: navigation.transferSize,
+                  encodedBodySize: navigation.encodedBodySize,
+                  decodedBodySize: navigation.decodedBodySize,
+                  requestStart: navigation.requestStart,
+                  responseStart: navigation.responseStart,
+                  duration: navigation.duration,
+                  type: navigation.type,
+                }
+              : null,
+          };
+        },
+      });
+      if (!results?.[0]?.result) {
+        throw new Error("The inspected page did not return a snapshot.");
+      }
+      return results[0].result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(
+    readableError(
+      lastError,
+      "Firefox could not access the inspected page. Wait for navigation to finish, then scan again.",
+    ),
+  );
+}
+
+function openFeedback() {
+  return browser.tabs.create({ url: FEEDBACK_URL });
+}
 
 function getSession(tabId) {
   if (!sessions.has(tabId)) {
@@ -307,6 +381,46 @@ browser.runtime.onConnect.addListener((port) => {
       publish(tabId);
       return;
     }
+    if (message.type === "CAPTURE_PAGE_SNAPSHOT") {
+      capturePageSnapshot(tabId)
+        .then((snapshot) => {
+          port.postMessage({
+            type: "PAGE_SNAPSHOT",
+            requestId: message.requestId,
+            snapshot,
+          });
+        })
+        .catch((error) => {
+          port.postMessage({
+            type: "PAGE_SNAPSHOT_ERROR",
+            requestId: message.requestId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+      return;
+    }
+    if (message.type === "NAVIGATE_TARGET") {
+      browser.tabs.update(tabId, { url: message.url }).catch((error) => {
+        const session = getSession(tabId);
+        session.commandError = `Could not navigate to target: ${readableError(
+          error,
+          "Firefox rejected the navigation. Try the target link directly.",
+        )}`;
+        publish(tabId);
+      });
+      return;
+    }
+    if (message.type === "OPEN_FEEDBACK") {
+      openFeedback().catch((error) => {
+        const session = getSession(tabId);
+        session.commandError = `Could not open the Issues page: ${readableError(
+          error,
+          `Open ${FEEDBACK_URL} directly.`,
+        )}`;
+        publish(tabId);
+      });
+      return;
+    }
     if (message.type === "START_RUN") {
       startRun(tabId, message).catch((error) => {
         const session = getSession(tabId);
@@ -317,7 +431,10 @@ browser.runtime.onConnect.addListener((port) => {
           session.runs[session.active.mode] = session.active;
           session.active = null;
         }
-        session.commandError = `Could not start capture: ${String(error)}`;
+        session.commandError = `Could not start capture: ${readableError(
+          error,
+          "Firefox could not reload the source page. Wait for navigation to finish and try again.",
+        )}`;
         publish(tabId);
       });
       return;

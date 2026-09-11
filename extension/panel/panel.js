@@ -7,9 +7,6 @@ import {
 } from "../lib/analyzer.js";
 import { sanitizeEvidence } from "../lib/privacy.js";
 
-const FEEDBACK_URL =
-  "https://github.com/skylarkning/Speculation-Rules-Testbench/issues/new?template=feedback.yml&labels=feedback";
-
 const tabId = browser.devtools.inspectedWindow.tabId;
 const port = browser.runtime.connect({ name: "speculation-rules-testbench" });
 
@@ -63,36 +60,7 @@ let navigationScanTimer = 0;
 let announcedCacheClearAt = null;
 let cacheClearConfirmUntil = 0;
 let cacheClearConfirmTimer = 0;
-
-const PAGE_SNAPSHOT_EXPRESSION = `(() => {
-  const navigation = performance.getEntriesByType("navigation")[0];
-  return {
-    pageUrl: location.href,
-    title: document.title,
-    apiSupported:
-      typeof HTMLScriptElement.supports === "function" &&
-      HTMLScriptElement.supports("speculationrules"),
-    deliveryTypeSupported:
-      "PerformanceNavigationTiming" in window &&
-      "deliveryType" in PerformanceNavigationTiming.prototype,
-    scripts: Array.from(document.querySelectorAll('script[type="speculationrules"]')).map((script, index) => ({
-      index,
-      text: script.textContent || "",
-      src: script.src || ""
-    })),
-    navigation: navigation ? {
-      name: navigation.name,
-      deliveryType: "deliveryType" in navigation ? navigation.deliveryType : "",
-      transferSize: navigation.transferSize,
-      encodedBodySize: navigation.encodedBodySize,
-      decodedBodySize: navigation.decodedBodySize,
-      requestStart: navigation.requestStart,
-      responseStart: navigation.responseStart,
-      duration: navigation.duration,
-      type: navigation.type
-    } : null
-  };
-})()`;
+const pendingSnapshots = new Map();
 
 function shortUrl(value) {
   if (!value) return "—";
@@ -109,16 +77,20 @@ function setNotice(message, isError = false) {
   elements.notice.classList.toggle("error", isError);
 }
 
-async function evaluate(expression) {
-  const [result, exception] = await browser.devtools.inspectedWindow.eval(expression);
-  if (exception) {
-    throw new Error(exception.value || exception.code || "Unable to inspect this page");
-  }
-  return result;
-}
-
 async function capturePageSnapshot() {
-  return evaluate(PAGE_SNAPSHOT_EXPRESSION);
+  const requestId = crypto.randomUUID();
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      pendingSnapshots.delete(requestId);
+      reject(
+        new Error(
+          "Page inspection timed out. Wait for the page to finish loading and scan again.",
+        ),
+      );
+    }, 10000);
+    pendingSnapshots.set(requestId, { resolve, reject, timeout });
+    port.postMessage({ type: "CAPTURE_PAGE_SNAPSHOT", tabId, requestId });
+  });
 }
 
 async function scanPage({ preserveTarget = false } = {}) {
@@ -464,7 +436,7 @@ async function startRun(mode) {
 
 async function navigateToTarget() {
   if (!targetUrl) return;
-  await evaluate(`location.assign(${JSON.stringify(targetUrl)})`);
+  port.postMessage({ type: "NAVIGATE_TARGET", tabId, url: targetUrl });
   setNotice("Navigating to the selected rule target. Finish the run after the page loads.");
 }
 
@@ -519,26 +491,8 @@ function exportEvidence() {
 }
 
 function submitFeedback() {
-  const version = browser.runtime.getManifest().version;
-  const title = encodeURIComponent(`[Feedback] Testbench ${version}`);
-  const body = encodeURIComponent(
-    [
-      "## What happened?",
-      "",
-      "",
-      "## What did you expect?",
-      "",
-      "",
-      "## Environment",
-      "",
-      `- Testbench version: ${version}`,
-      "- Firefox version:",
-      "- Operating system:",
-      "",
-      "If useful, attach a sanitized JSON export. Review it before uploading; site URLs may still appear.",
-    ].join("\n"),
-  );
-  browser.tabs.create({ url: `${FEEDBACK_URL}&title=${title}&body=${body}` });
+  port.postMessage({ type: "OPEN_FEEDBACK", tabId });
+  setNotice("Opening the repository Issues page in a new tab.");
 }
 
 elements.scanButton.addEventListener("click", () => scanPage());
@@ -559,6 +513,26 @@ elements.stopButton.addEventListener("click", () => {
 });
 
 port.onMessage.addListener((message) => {
+  if (
+    message.type === "PAGE_SNAPSHOT" ||
+    message.type === "PAGE_SNAPSHOT_ERROR"
+  ) {
+    const pending = pendingSnapshots.get(message.requestId);
+    if (!pending) return;
+    pendingSnapshots.delete(message.requestId);
+    window.clearTimeout(pending.timeout);
+    if (message.type === "PAGE_SNAPSHOT") {
+      pending.resolve(message.snapshot);
+    } else {
+      pending.reject(
+        new Error(
+          message.error ||
+            "Unable to inspect the current page. Wait for it to load and scan again.",
+        ),
+      );
+    }
+    return;
+  }
   if (message.type !== "STATE") return;
   session = message.session;
   if (session.cacheStatus === "clearing") {
@@ -578,6 +552,11 @@ port.onMessage.addListener((message) => {
   render();
 });
 port.onDisconnect.addListener(() => {
+  for (const pending of pendingSnapshots.values()) {
+    window.clearTimeout(pending.timeout);
+    pending.reject(new Error("The extension background page disconnected."));
+  }
+  pendingSnapshots.clear();
   setNotice("The extension background page disconnected. Reopen DevTools to reconnect.", true);
 });
 
