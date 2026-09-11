@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Firefox Speculation Rules platform bug
+    url: https://bugzilla.mozilla.org/enter_bug.cgi?product=Core&component=DOM%3A%20Core%20%26%20HTML
+    about: Report a reproducible Firefox implementation bug in Bugzilla.

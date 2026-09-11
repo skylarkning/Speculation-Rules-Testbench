@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Speculation Rules Lab · Target</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="target-page">
+    <main>
+      <p class="eyebrow">Navigation complete</p>
+      <h1 id="target-title">Reading Firefox timing…</h1>
+      <p class="lede" id="target-summary">
+        This document runs only after navigation, even when its response was
+        fetched ahead of time.
+      </p>
+      <section class="target-card">
+        <div><span>Case</span><strong id="target-case">—</strong></div>
+        <div><span>deliveryType</span><strong id="target-delivery">—</strong></div>
+        <div><span>Transfer</span><strong id="target-transfer">—</strong></div>
+        <div><span>Request → response</span><strong id="target-latency">—</strong></div>
+        <div><span>Duration</span><strong id="target-duration">—</strong></div>
+      </section>
+      <a class="return-button" href="./index.html">Return to lab and compare</a>
+      <p class="target-note">
+        A static page cannot read its own <code>Sec-Purpose</code> request header.
+        Inspect that signal in Firefox DevTools → Network.
+      </p>
+    </main>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const runCase = params.get("case") === "prefetch" ? "prefetch" : "control";
+
+      function record() {
+        const nav = performance.getEntriesByType("navigation")[0];
+        const result = {
+          case: runCase,
+          deliveryType: nav && "deliveryType" in nav ? nav.deliveryType : "",
+          transferSize: nav ? nav.transferSize : 0,
+          requestStart: nav ? nav.requestStart : 0,
+          responseStart: nav ? nav.responseStart : 0,
+          duration: nav ? nav.duration : 0,
+          recordedAt: new Date().toISOString()
+        };
+        localStorage.setItem("speculation-static-lab:" + runCase, JSON.stringify(result));
+
+        const activated = result.deliveryType === "navigational-prefetch";
+        document.getElementById("target-title").textContent = activated
+          ? "Warm navigation activated."
+          : "Navigation timing recorded.";
+        document.getElementById("target-summary").textContent = activated
+          ? "Firefox exposed this navigation as a reused navigational prefetch."
+          : "Return to the lab to compare this run. Use Network to confirm whether the document arrived before the click.";
+        document.getElementById("target-case").textContent = runCase === "prefetch" ? "Rules enabled" : "Rules disabled";
+        document.getElementById("target-delivery").textContent = result.deliveryType || "empty";
+        document.getElementById("target-transfer").textContent = result.transferSize + " B";
+        document.getElementById("target-latency").textContent = Math.max(0, result.responseStart - result.requestStart).toFixed(1) + " ms";
+        document.getElementById("target-duration").textContent = result.duration.toFixed(1) + " ms";
+      }
+
+      if (document.readyState === "complete") record();
+      else window.addEventListener("load", () => setTimeout(record, 0), { once: true });
+    </script>
+  </body>
+</html>

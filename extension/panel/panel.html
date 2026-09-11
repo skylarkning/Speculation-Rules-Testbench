@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Speculation Rules Testbench</title>
+    <link rel="stylesheet" href="./panel.css" />
+  </head>
+  <body>
+    <header class="panel-header">
+      <div>
+        <h1>Speculation Rules Testbench</h1>
+        <p id="page-url">Waiting for the inspected page…</p>
+      </div>
+      <div class="header-actions">
+        <button id="scan-button" type="button">Scan and lock pair</button>
+        <button id="export-button" type="button">Export sanitized JSON</button>
+        <button id="feedback-button" type="button">Submit feedback</button>
+        <button id="clear-button" type="button">Clear</button>
+      </div>
+    </header>
+
+    <div id="notice" class="notice" role="status" aria-live="polite">
+      Open a normal HTTP or HTTPS page, then scan it for rules.
+    </div>
+
+    <main>
+      <section aria-labelledby="rules-heading">
+        <div class="section-heading">
+          <div>
+            <span>1</span>
+            <h2 id="rules-heading">Page rules</h2>
+          </div>
+          <div id="capabilities" class="capabilities"></div>
+        </div>
+        <div id="rules-summary" class="summary-line">No scan yet.</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Source</th>
+                <th>Eagerness</th>
+                <th>Target</th>
+                <th>Firefox M1</th>
+              </tr>
+            </thead>
+            <tbody id="rules-body">
+              <tr><td colspan="5">Scan the inspected page to populate this table.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="capture-heading">
+        <div class="section-heading">
+          <div>
+            <span>2</span>
+            <h2 id="capture-heading">Capture workflow</h2>
+          </div>
+          <strong id="capture-state">Idle</strong>
+        </div>
+        <p class="method-note">
+          The enabled run observes Firefox normally. The control run cancels requests carrying
+          <code>Sec-Purpose: prefetch</code>; it does not change the global Firefox preference.
+        </p>
+        <div class="workflow">
+          <button id="clear-cache-button" type="button">Clear entire HTTP cache</button>
+          <button id="enabled-button" class="primary" type="button">Start enabled capture</button>
+          <button id="blocked-button" type="button">Start blocked-prefetch control</button>
+          <button id="navigate-button" type="button" disabled>Navigate to rule target</button>
+          <button id="finish-button" class="primary" type="button" disabled>Finish and save measurement</button>
+          <button id="stop-button" type="button" disabled>Cancel without measurement</button>
+        </div>
+        <dl class="run-context">
+          <div><dt>Source</dt><dd id="source-url">—</dd></div>
+          <div><dt>Target</dt><dd id="target-url">—</dd></div>
+          <div><dt>Pair</dt><dd id="pair-state">Not locked</dd></div>
+          <div><dt>Cache isolation</dt><dd id="cache-state">Required before each run</dd></div>
+          <div><dt>Control</dt><dd>Prefetch request blocked before it is sent</dd></div>
+        </dl>
+        <p class="cache-warning">
+          Cache clearing affects the entire Firefox profile. Use a dedicated testing profile and
+          clear immediately before each condition.
+        </p>
+      </section>
+
+      <section aria-labelledby="network-heading">
+        <div class="section-heading">
+          <div>
+            <span>3</span>
+            <h2 id="network-heading">Captured requests</h2>
+          </div>
+          <strong id="request-count">0 relevant requests</strong>
+        </div>
+        <div class="table-wrap network-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Kind</th>
+                <th>Request</th>
+                <th>Purpose</th>
+                <th>Status</th>
+                <th>Cache-Control</th>
+                <th>From cache</th>
+              </tr>
+            </thead>
+            <tbody id="requests-body">
+              <tr><td colspan="7">Start a capture to record speculative and top-level requests.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="compare-heading">
+        <div class="section-heading">
+          <div>
+            <span>4</span>
+            <h2 id="compare-heading">Run comparison</h2>
+          </div>
+        </div>
+        <div id="comparison-assessment" class="assessment">Run and save both conditions before interpreting the comparison.</div>
+        <div class="comparison">
+          <article>
+            <h3>Enabled</h3>
+            <dl id="enabled-summary"><div><dt>Status</dt><dd>Not run</dd></div></dl>
+          </article>
+          <article>
+            <h3>Blocked-prefetch control</h3>
+            <dl id="blocked-summary"><div><dt>Status</dt><dd>Not run</dd></div></dl>
+          </article>
+        </div>
+        <p class="method-note">
+          Use a dedicated test profile. The explicit cache action clears the profile’s entire HTTP
+          cache; no cookies, history, passwords, or site storage are removed.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./panel.js"></script>
+  </body>
+</html>

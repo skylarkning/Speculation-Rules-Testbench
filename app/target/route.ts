@@ -1,4 +1,13 @@
-const targetPage = `<!doctype html>
+function inlineScriptString(value: string) {
+  return JSON.stringify(value).replaceAll("<", "\\u003c");
+}
+
+function createTargetPage(request: Request) {
+  const serverPurpose = request.headers.get("sec-purpose") ?? "";
+  const serverFetchDest = request.headers.get("sec-fetch-dest") ?? "";
+  const serverFetchMode = request.headers.get("sec-fetch-mode") ?? "";
+
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -46,48 +55,124 @@ const targetPage = `<!doctype html>
         <div class="metric"><span>transfer size</span><strong id="transfer">—</strong></div>
         <div class="metric"><span>request → response</span><strong id="latency">—</strong></div>
         <div class="metric"><span>total duration</span><strong id="duration">—</strong></div>
+        <div class="metric"><span>Sec-Purpose</span><strong id="server-purpose">—</strong></div>
+        <div class="metric"><span>Sec-Fetch</span><strong id="server-fetch">—</strong></div>
       </div>
       <div class="actions">
         <a class="primary" href="/">Return to comparison</a>
         <a class="secondary" href="/" id="run-other">Run other case</a>
       </div>
-      <p class="note">A blank deliveryType means Firefox did not expose navigational-prefetch for this load. Confirm Sec-Purpose and Sec-Fetch headers separately when diagnosing request behavior.</p>
+      <p class="note">Sec-Purpose: prefetch confirms that the displayed response was fetched speculatively. deliveryType reports whether Firefox exposed that response as an activated navigational prefetch.</p>
     </section>
   </main>
   <script>
     const params = new URLSearchParams(location.search);
     const runCase = params.get("case") === "prefetch" ? "prefetch" : "control";
     const runId = params.get("run") || "unknown";
-    const nav = performance.getEntriesByType("navigation")[0];
-    const result = {
-      case: runCase,
-      runId,
-      deliveryType: nav && "deliveryType" in nav ? nav.deliveryType : "",
-      transferSize: nav ? nav.transferSize : 0,
-      encodedBodySize: nav ? nav.encodedBodySize : 0,
-      decodedBodySize: nav ? nav.decodedBodySize : 0,
-      duration: nav ? nav.duration : 0,
-      requestStart: nav ? nav.requestStart : 0,
-      responseStart: nav ? nav.responseStart : 0,
-      recordedAt: new Date().toISOString()
+    const serverRequest = {
+      purpose: ${inlineScriptString(serverPurpose)},
+      fetchDest: ${inlineScriptString(serverFetchDest)},
+      fetchMode: ${inlineScriptString(serverFetchMode)}
     };
-    localStorage.setItem("prefetch-lab:last-result", JSON.stringify(result));
-    const activated = result.deliveryType === "navigational-prefetch";
-    document.getElementById("headline").textContent = activated ? "Prefetch activation observed." : "Navigation recorded.";
-    document.getElementById("summary").textContent = activated ? "Firefox reported that this document navigation reused a navigational prefetch." : "The timing entry was captured. Compare it with the other case before drawing a conclusion.";
-    document.getElementById("case-label").textContent = runCase === "prefetch" ? "Prefetched case" : "Control case";
-    document.getElementById("badge").textContent = activated ? "prefetch activated" : runCase;
-    document.getElementById("delivery").textContent = result.deliveryType || "empty";
-    document.getElementById("transfer").textContent = result.transferSize + " B";
-    document.getElementById("latency").textContent = Math.max(0, result.responseStart - result.requestStart).toFixed(1) + " ms";
-    document.getElementById("duration").textContent = result.duration.toFixed(1) + " ms";
-    document.getElementById("run-other").textContent = runCase === "prefetch" ? "Run control next" : "Run prefetch next";
+    const serverPrefetchObserved = serverRequest.purpose.toLowerCase().includes("prefetch");
+    let observedNavigation = null;
+    let navigationObserver = null;
+
+    try {
+      navigationObserver = new PerformanceObserver((list) => {
+        observedNavigation = list.getEntries().find((entry) => entry.entryType === "navigation") || observedNavigation;
+      });
+      navigationObserver.observe({ type: "navigation", buffered: true });
+    } catch {
+      navigationObserver = null;
+    }
+
+    function recordResult(nav) {
+      const timingAvailable = Boolean(nav);
+      const result = {
+        case: runCase,
+        runId,
+        timingAvailable,
+        serverPurpose: serverRequest.purpose,
+        serverFetchDest: serverRequest.fetchDest,
+        serverFetchMode: serverRequest.fetchMode,
+        deliveryType: nav && "deliveryType" in nav ? nav.deliveryType : "",
+        transferSize: nav ? nav.transferSize : 0,
+        encodedBodySize: nav ? nav.encodedBodySize : 0,
+        decodedBodySize: nav ? nav.decodedBodySize : 0,
+        duration: nav ? nav.duration : 0,
+        requestStart: nav ? nav.requestStart : 0,
+        responseStart: nav ? nav.responseStart : 0,
+        recordedAt: new Date().toISOString()
+      };
+      localStorage.setItem("prefetch-lab:last-result", JSON.stringify(result));
+
+      const activated = result.deliveryType === "navigational-prefetch";
+      document.getElementById("headline").textContent = !timingAvailable
+        ? "Navigation timing unavailable."
+        : activated
+          ? "Prefetch activation observed."
+          : serverPrefetchObserved
+            ? "Prefetch request observed."
+          : "Navigation recorded.";
+      document.getElementById("summary").textContent = !timingAvailable
+        ? "Firefox did not expose a navigation timing entry for this load, so no performance result was recorded."
+        : activated
+          ? "Firefox reported that this document navigation reused a navigational prefetch."
+          : serverPrefetchObserved
+            ? "The server received Sec-Purpose: prefetch, although Firefox left deliveryType blank for this navigation."
+          : "The timing entry was captured. Compare it with the other case before drawing a conclusion.";
+      document.getElementById("case-label").textContent = runCase === "prefetch" ? "Prefetched case" : "Control case";
+      document.getElementById("badge").textContent = !timingAvailable
+        ? "timing unavailable"
+        : activated
+          ? "prefetch activated"
+          : serverPrefetchObserved
+            ? "prefetch request observed"
+          : runCase;
+      document.getElementById("delivery").textContent = timingAvailable ? result.deliveryType || "empty" : "unavailable";
+      document.getElementById("transfer").textContent = timingAvailable ? result.transferSize + " B" : "unavailable";
+      document.getElementById("latency").textContent = timingAvailable
+        ? Math.max(0, result.responseStart - result.requestStart).toFixed(1) + " ms"
+        : "unavailable";
+      document.getElementById("duration").textContent = timingAvailable ? result.duration.toFixed(1) + " ms" : "unavailable";
+      document.getElementById("server-purpose").textContent = serverRequest.purpose || "not present";
+      document.getElementById("server-fetch").textContent = [serverRequest.fetchDest, serverRequest.fetchMode].filter(Boolean).join(" · ") || "not present";
+      document.getElementById("run-other").textContent = runCase === "prefetch" ? "Run control next" : "Run prefetch next";
+    }
+
+    function captureNavigationTiming() {
+      let attempts = 0;
+
+      function tryCapture() {
+        const nav = observedNavigation || performance.getEntriesByType("navigation")[0];
+        if (!nav && attempts < 20) {
+          attempts += 1;
+          setTimeout(tryCapture, 50);
+          return;
+        }
+
+        navigationObserver?.disconnect();
+        recordResult(nav);
+      }
+
+      // Run after the load event handler returns so final navigation fields,
+      // including duration, have had a chance to settle.
+      setTimeout(tryCapture, 0);
+    }
+
+    if (document.readyState === "complete") {
+      captureNavigationTiming();
+    } else {
+      window.addEventListener("load", captureNavigationTiming, { once: true });
+    }
   </script>
 </body>
 </html>`;
+}
 
-export function GET() {
-  return new Response(targetPage, {
+export function GET(request: Request) {
+  return new Response(createTargetPage(request), {
     headers: {
       "Cache-Control": "public, max-age=300",
       "Content-Type": "text/html; charset=utf-8",

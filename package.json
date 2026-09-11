@@ -9,7 +9,10 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "extension:package": "mkdir -p public/downloads && cd extension && zip -qrFS ../public/downloads/speculation-rules-testbench-firefox.zip .",
+    "extension:check": "node --check extension/background.js && node --check extension/devtools/devtools.js && node --check extension/panel/panel.js",
+    "extension:lint": "web-ext lint --source-dir extension",
+    "test": "npm run extension:package && npm run extension:check && npm run extension:lint && npm run build && node --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
@@ -40,6 +43,7 @@
     "typescript-eslint": "8.59.3",
     "vinext": "1.0.0-beta.2",
     "vite": "8.0.13",
+    "web-ext": "^10.6.0",
     "wrangler": "4.92.0"
   },
   "type": "module"

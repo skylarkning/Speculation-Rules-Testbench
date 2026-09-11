@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Firefox Speculation Rules Prefetch Test Harness</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="../" class="brand"><b>S</b> Speculation Rules Prefetch Test Harness</a>
+      <span>Static same-origin test page</span>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Firefox Nightly M1 · same-origin list rule</p>
+        <h1>Speculation Rules<br />Prefetch Test Harness</h1>
+        <p class="lede">
+          Run an enabled/control navigation pair. Inspect rule acceptance, request
+          dispatch, cache reuse, <code>deliveryType</code>, and navigation timing.
+        </p>
+        <div class="requirements" aria-label="Lab requirements">
+          <span id="api-status"><i></i>Checking Speculation Rules…</span>
+          <span id="timing-status"><i></i>Checking deliveryType…</span>
+          <span><i></i>Use a top-level HTTPS page</span>
+        </div>
+      </section>
+
+      <nav class="steps" aria-label="Codelab steps">
+        <a href="#prepare"><b>01</b><span>Prepare</span></a>
+        <a href="#observe"><b>02</b><span>Observe</span></a>
+        <a href="#navigate"><b>03</b><span>Navigate</span></a>
+        <a href="#compare"><b>04</b><span>Compare</span></a>
+      </nav>
+
+      <section class="lesson" id="prepare">
+        <div class="lesson-copy">
+          <p class="step-label">01 · Prepare</p>
+          <h2>One target, two conditions</h2>
+          <p>
+            Both runs open the same static document with a unique query string.
+            The enabled run first injects an immediate list rule; the control does
+            not. Unique URLs keep the two runs from warming each other.
+          </p>
+          <pre><code>{
+  "prefetch": [{
+    "source": "list",
+    "urls": ["./target.html?run=…"],
+    "eagerness": "immediate"
+  }]
+}</code></pre>
+        </div>
+
+        <div class="runner" id="navigate">
+          <div class="runner-head">
+            <div>
+              <span>Live browser lifecycle</span>
+              <strong id="runner-state">Ready</strong>
+            </div>
+            <button id="reset-button" class="text-button" type="button">Reset results</button>
+          </div>
+
+          <ol class="lifecycle" id="lifecycle" aria-live="polite">
+            <li data-step="0"><b>1</b><span><strong>Rule injected</strong><small>Firefox receives a list rule</small></span></li>
+            <li data-step="1"><b>2</b><span><strong>Prefetch dispatched</strong><small>Request starts before navigation</small></span></li>
+            <li data-step="2"><b>3</b><span><strong>Response warm</strong><small>Document waits for a matching click</small></span></li>
+            <li data-step="3"><b>4</b><span><strong>Navigation activated</strong><small>Warm response can be reused</small></span></li>
+          </ol>
+
+          <div class="run-actions">
+            <button id="enabled-button" class="primary" type="button">
+              Run with rules enabled
+            </button>
+            <button id="disabled-button" class="secondary" type="button">
+              Run with rules disabled
+            </button>
+          </div>
+          <p id="runner-note" class="runner-note">
+            Open Firefox DevTools → Network before starting if you want to see the
+            request arrive ahead of the navigation.
+          </p>
+        </div>
+      </section>
+
+      <section class="observe" id="observe">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">02 · Observe</p>
+            <h2>Observable signals</h2>
+          </div>
+          <p>Each claim has a place where it can be checked.</p>
+        </div>
+        <div class="observation-grid">
+          <article><b>01</b><h3>Rule handling</h3><p>The speculationrules script is discovered and the list rule is accepted.</p><span>Inspector / page source</span></article>
+          <article><b>02</b><h3>Early request</h3><p><code>target.html</code> appears in Network before any navigation.</p><span>Network / profile</span></article>
+          <article><b>03</b><h3>Prefetch identity</h3><p>The early request carries <code>Sec-Purpose: prefetch</code>.</p><span>Request headers / logs</span></article>
+          <article><b>04</b><h3>Cache reuse</h3><p>The later click uses the warm document instead of downloading it again.</p><span>deliveryType / transfer</span></article>
+          <article><b>05</b><h3>User impact</h3><p>Compare request-to-response time, total duration, and correctness.</p><span>Navigation Timing / page</span></article>
+        </div>
+        <aside class="devtools-callout">
+          <strong>In Firefox DevTools</strong>
+          <ol>
+            <li>Open Network, keep this page top-level, then reload.</li>
+            <li>Click <em>Run with rules enabled</em>. Watch for <code>target.html</code> before navigation.</li>
+            <li>Inspect its request headers for <code>Sec-Purpose: prefetch</code>.</li>
+            <li>Open the warm target, return, then run the disabled control.</li>
+          </ol>
+        </aside>
+      </section>
+
+      <section class="compare" id="compare">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">04 · Compare</p>
+            <h2>Browser-reported result</h2>
+          </div>
+          <span id="compare-status">Run both cases</span>
+        </div>
+        <div class="comparison-grid">
+          <article>
+            <span>Rules enabled</span>
+            <strong id="enabled-delivery">Not run</strong>
+            <dl>
+              <div><dt>Transfer</dt><dd id="enabled-transfer">—</dd></div>
+              <div><dt>Request → response</dt><dd id="enabled-latency">—</dd></div>
+              <div><dt>Duration</dt><dd id="enabled-duration">—</dd></div>
+            </dl>
+          </article>
+          <article>
+            <span>Rules disabled</span>
+            <strong id="disabled-delivery">Not run</strong>
+            <dl>
+              <div><dt>Transfer</dt><dd id="disabled-transfer">—</dd></div>
+              <div><dt>Request → response</dt><dd id="disabled-latency">—</dd></div>
+              <div><dt>Duration</dt><dd id="disabled-duration">—</dd></div>
+            </dl>
+          </article>
+        </div>
+        <p class="interpretation" id="interpretation">
+          The page will summarize only the signals the browser exposes. Confirm
+          request timing and <code>Sec-Purpose</code> separately in DevTools.
+        </p>
+      </section>
+
+      <section class="real-site">
+        <div>
+          <p class="step-label">Real-site verification</p>
+          <h2>Apply the same checks to Symfony</h2>
+          <p>
+            Symfony’s homepage currently lists <code>/blog/</code> for prefetch.
+            Because the list rule omits eagerness, it defaults to immediate—the
+            exact Firefox M1 shape this lab demonstrates.
+          </p>
+        </div>
+        <pre><code>&lt;script type="speculationrules"&gt;
+{"prefetch":[{"urls":["/blog/"]}]}
+&lt;/script&gt;</code></pre>
+        <div class="real-links">
+          <a href="https://symfony.com/" target="_blank" rel="noreferrer">Open Symfony ↗</a>
+          <a href="https://perf-labs.netlify.app/gh/speculation-rules-prefetch/examples/symfony/index.html" target="_blank" rel="noreferrer">See Firefox measurements ↗</a>
+        </div>
+      </section>
+
+      <section class="references">
+        <p class="step-label">References</p>
+        <h2>Technical references</h2>
+        <div>
+          <a href="https://codelabs.developers.google.com/speculation-rules" target="_blank" rel="noreferrer"><strong>Google Codelab</strong><span>API implementation example</span></a>
+          <a href="https://chrome.dev/f/learn_performance_prefetch_and_prerender/2/" target="_blank" rel="noreferrer"><strong>Chrome interactive demo</strong><span>Prefetch and prerender example</span></a>
+          <a href="https://developer.mozilla.org/en-US/docs/Web/API/Speculation_Rules_API" target="_blank" rel="noreferrer"><strong>MDN</strong><span>API, headers, and safety</span></a>
+          <a href="https://wicg.github.io/nav-speculation/prefetch.html" target="_blank" rel="noreferrer"><strong>Prefetch specification</strong><span>Matching and activation model</span></a>
+          <a href="https://perf-labs.netlify.app/#speculation-rules-prefetch" target="_blank" rel="noreferrer"><strong>Firefox dashboard</strong><span>CI performance tracking</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>All experiment files are static and stay on this origin.</span>
+      <span>Built for Firefox Nightly M1 · list + immediate + same-origin</span>
+    </footer>
+    <script src="./lab.js"></script>
+  </body>
+</html>
