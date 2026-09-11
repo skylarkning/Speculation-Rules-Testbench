@@ -43,6 +43,8 @@ The panel:
 
 Source, releases, and feedback are hosted at
 [github.com/skylarkning/Speculation-Rules-Testbench](https://github.com/skylarkning/Speculation-Rules-Testbench).
+The dependency-free interactive lab is published at
+[skylarkning.github.io/Speculation-Rules-Testbench](https://skylarkning.github.io/Speculation-Rules-Testbench/).
 
 The blocked control does not modify the global Firefox preference. Cache
 clearing happens only after explicit confirmation and affects the entire
@@ -60,6 +62,8 @@ the enabled/control results in local storage for comparison.
 It can be served from any top-level HTTPS static host, including GitHub Pages.
 Publish the contents of `public/lab/` together so `index.html`, `target.html`,
 `lab.js`, and `styles.css` remain on the same origin and in the same directory.
+The repository's Pages workflow publishes this directory at the hosted URL
+above.
 The browser-only version cannot read its own `Sec-Purpose` request header, so
 the codelab instructs the investigator to verify that signal in Firefox
 DevTools. The main application retains the server-backed target for an
