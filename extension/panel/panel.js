@@ -492,7 +492,7 @@ function exportEvidence() {
 
 function submitFeedback() {
   port.postMessage({ type: "OPEN_FEEDBACK", tabId });
-  setNotice("Opening the repository Issues page in a new tab.");
+  setNotice("Opening the repository issue form chooser in a new tab.");
 }
 
 elements.scanButton.addEventListener("click", () => scanPage());

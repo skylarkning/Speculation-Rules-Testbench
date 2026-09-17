@@ -21,7 +21,7 @@ const RESPONSE_HEADER_ALLOWLIST = new Set([
   "vary",
 ]);
 const FEEDBACK_URL =
-  "https://github.com/skylarkning/Speculation-Rules-Testbench/issues";
+  "https://github.com/skylarkning/Speculation-Rules-Testbench/issues/new/choose";
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));

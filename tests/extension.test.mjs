@@ -301,7 +301,7 @@ test("attributes a tabless speculative request to one exact active target", asyn
   await context.__testbench.openFeedback();
   assert.equal(
     feedbackUrl,
-    "https://github.com/skylarkning/Speculation-Rules-Testbench/issues",
+    "https://github.com/skylarkning/Speculation-Rules-Testbench/issues/new/choose",
   );
 });
 
@@ -334,11 +334,11 @@ test("extension manifest and panel declare the required Firefox surfaces", async
   assert.match(panel, /Finish and save measurement/);
   assert.match(panel, /Cancel without measurement/);
   assert.match(panel, /Scan and lock pair/);
-  assert.match(panel, /Submit feedback/);
+  assert.match(panel, /Feedback or report a bug/);
   assert.match(background, /return \{ cancel: true \}/);
   assert.match(
     background,
-    /github\.com\/skylarkning\/Speculation-Rules-Testbench\/issues/,
+    /github\.com\/skylarkning\/Speculation-Rules-Testbench\/issues\/new\/choose/,
   );
   assert.match(background, /browser\.scripting\.executeScript/);
   assert.match(background, /OPEN_FEEDBACK/);
@@ -347,4 +347,23 @@ test("extension manifest and panel declare the required Firefox surfaces", async
   assert.doesNotMatch(panelScript, /browser\.tabs\.create/);
   assert.doesNotMatch(panelScript, /inspectedWindow\.eval/);
   assert.doesNotMatch(panelScript, /window\.confirm/);
+});
+
+test("ships separate GitHub bug and feature request forms", async () => {
+  const bugForm = await readFile(
+    new URL("../.github/ISSUE_TEMPLATE/bug_report.yml", import.meta.url),
+    "utf8",
+  );
+  const featureForm = await readFile(
+    new URL("../.github/ISSUE_TEMPLATE/feature_request.yml", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(bugForm, /^name: Bug report/m);
+  assert.match(bugForm, /label: Steps to reproduce/);
+  assert.match(bugForm, /label: Actual result/);
+  assert.match(bugForm, /label: Expected result/);
+  assert.match(featureForm, /^name: Feature request/m);
+  assert.match(featureForm, /label: Problem to solve/);
+  assert.match(featureForm, /label: Proposed behavior/);
 });

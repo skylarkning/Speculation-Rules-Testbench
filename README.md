@@ -39,7 +39,8 @@ The panel:
   run; and
 - exports privacy-sanitized page analysis, request lifecycle, run metadata,
   summaries, and methodology as JSON;
-- opens a prefilled GitHub issue for feedback without uploading capture data.
+- opens dedicated GitHub bug-report and feature-request forms without
+  uploading capture data.
 
 Source, releases, and feedback are hosted at
 [github.com/skylarkning/Speculation-Rules-Testbench](https://github.com/skylarkning/Speculation-Rules-Testbench).

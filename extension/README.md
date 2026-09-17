@@ -50,10 +50,10 @@ dedicated Firefox testing profile.
 6. Navigate to the target, finish the run, compare the two summaries, and
    export sanitized JSON.
 
-Use **Submit feedback** to open the project's GitHub Issues page in a new tab.
-No capture data is attached automatically. Create a feedback issue and add a
-sanitized JSON export only when it helps reproduce the problem and after
-reviewing its remaining URLs.
+Use **Feedback or report a bug** to open the project's GitHub issue chooser in
+a new tab. Choose the Bug report or Feature request form. No capture data is
+attached automatically. Add a sanitized JSON export only when it helps
+reproduce the problem and after reviewing its remaining URLs.
 
 The comparison is marked inconclusive if the two saved runs do not contain the
 same source and target URLs. Export schema version 2 includes the locked pair,
