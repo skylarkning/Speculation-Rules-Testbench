@@ -323,11 +323,26 @@ test("extension manifest and panel declare the required Firefox surfaces", async
   );
 
   assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.version, "1.4.0");
   assert.equal(manifest.devtools_page, "devtools/devtools.html");
+  assert.equal(
+    manifest.browser_specific_settings.gecko.id,
+    "speculation-rules-testbench@skylarkning.github.io",
+  );
+  assert.equal(manifest.author, "Sky Ning");
+  assert.equal(
+    manifest.homepage_url,
+    "https://github.com/skylarkning/Speculation-Rules-Testbench",
+  );
+  assert.deepEqual(
+    manifest.browser_specific_settings.gecko.data_collection_permissions.required,
+    ["none"],
+  );
   assert.ok(manifest.permissions.includes("webRequest"));
   assert.ok(manifest.permissions.includes("webRequestBlocking"));
   assert.ok(manifest.permissions.includes("browsingData"));
   assert.ok(manifest.permissions.includes("scripting"));
+  assert.ok(!manifest.permissions.includes("storage"));
   assert.ok(manifest.host_permissions.includes("<all_urls>"));
   assert.match(panel, /Start enabled capture/);
   assert.match(panel, /Start blocked-prefetch control/);
@@ -366,4 +381,21 @@ test("ships separate GitHub bug and feature request forms", async () => {
   assert.match(featureForm, /^name: Feature request/m);
   assert.match(featureForm, /label: Problem to solve/);
   assert.match(featureForm, /label: Proposed behavior/);
+});
+
+test("ships AMO listing, privacy, and reviewer documentation", async () => {
+  const [privacy, listing, reviewerNotes, checklist, license] = await Promise.all([
+    readFile(new URL("../PRIVACY.md", import.meta.url), "utf8"),
+    readFile(new URL("../amo/listing.md", import.meta.url), "utf8"),
+    readFile(new URL("../amo/reviewer-notes.md", import.meta.url), "utf8"),
+    readFile(new URL("../amo/submission-checklist.md", import.meta.url), "utf8"),
+    readFile(new URL("../LICENSE", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(privacy, /does not\s+collect, sell, transmit/);
+  assert.match(listing, /Speculation Rules Testbench/);
+  assert.match(reviewerNotes, /Permission justification/);
+  assert.match(reviewerNotes, /data_collection_permissions\.required/);
+  assert.match(checklist, /support email address/);
+  assert.match(license, /^Mozilla Public License Version 2\.0/);
 });

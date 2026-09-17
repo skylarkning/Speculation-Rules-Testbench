@@ -82,3 +82,7 @@ by MDN:
 
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Extending_the_developer_tools
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest
+
+The extension is licensed under MPL-2.0. Privacy and AMO submission documents
+are maintained in the repository root:
+https://github.com/skylarkning/Speculation-Rules-Testbench

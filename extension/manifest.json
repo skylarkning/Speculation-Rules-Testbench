@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Speculation Rules Testbench",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "description": "Inspect Firefox Speculation Rules, record speculative requests, run a blocked-prefetch control, and export the evidence.",
+  "author": "Sky Ning",
+  "homepage_url": "https://github.com/skylarkning/Speculation-Rules-Testbench",
   "browser_specific_settings": {
     "gecko": {
-      "id": "speculation-rules-testbench@mozilla.dev",
+      "id": "speculation-rules-testbench@skylarkning.github.io",
       "strict_min_version": "142.0",
       "data_collection_permissions": {
         "required": [
@@ -17,7 +19,6 @@
   "permissions": [
     "browsingData",
     "scripting",
-    "storage",
     "tabs",
     "webRequest",
     "webRequestBlocking"

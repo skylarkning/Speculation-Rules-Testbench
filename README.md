@@ -143,6 +143,20 @@ the hosted application, and runs the rendered-page and extension analyzer
 tests. The generated download is
 `public/downloads/speculation-rules-testbench-firefox.zip`.
 
+## Publish to Mozilla Add-ons
+
+Run `npm run extension:package:amo` to produce the clean AMO upload ZIP in
+`artifacts/`. Listing copy, reviewer notes, screenshot guidance, and the final
+account-owner checklist are in [`amo/`](amo/README.md).
+
 The controlled runner is intentionally browser-local. Its result page displays
 the request headers observed by the target route alongside the browser's
 Navigation Timing values.
+
+## Privacy and license
+
+The extension does not transmit captured browsing data. See
+[`PRIVACY.md`](PRIVACY.md) for its data-handling and permission details.
+
+This project is licensed under the Mozilla Public License 2.0. See
+[`LICENSE`](LICENSE).
